@@ -1,4 +1,18 @@
 import streamlit as st
+import streamlit as st
+
+# Hide Streamlit header, top toolbar, GitHub links, and footer
+hide_streamlit_style = """
+    <style>
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+    header {visibility: hidden !important;}
+    [data-testid="stHeader"] {display: none !important;}
+    [data-testid="stToolbar"] {display: none !important;}
+    .stAppHeader {display: none !important;}
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 import pandas as pd
 import numpy as np
 import plotly.express as px
