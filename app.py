@@ -1,27 +1,26 @@
 import streamlit as st
-import streamlit as st
 
-import streamlit as st
-
-# Hide top header, main menu, footer, and bottom viewer badges
-hide_all_streamlit_elements = """
+# Hide Streamlit branding and footer, but keep sidebar collapse/expand controls working
+hide_branding_keep_sidebar = """
     <style>
     #MainMenu {visibility: hidden !important;}
     footer {visibility: hidden !important;}
-    header {visibility: hidden !important;}
-    [data-testid="stHeader"] {display: none !important;}
-    [data-testid="stToolbar"] {display: none !important;}
-    .stAppHeader {display: none !important;}
     
-    /* Target bottom badges: "Created by" and "Hosted with Streamlit" */
+    /* Hide top right toolbar/GitHub links */
+    [data-testid="stToolbar"] {display: none !important;}
+    
+    /* Target bottom badges */
     [data-testid="stStatusWidget"] {display: none !important;}
-    .viewerBadge_container__1A53N {display: none !important;}
     [class*="viewerBadge_container"] {display: none !important;}
-    [class*="styles_viewerBadge"] {display: none !important;}
-    div[class*="stActionButton"] {display: none !important;}
+    
+    /* Ensure the sidebar collapse/expand button stays visible and clickable */
+    [data-testid="stSidebarCollapseButton"] {
+        visibility: visible !important;
+        display: block !important;
+    }
     </style>
 """
-st.markdown(hide_all_streamlit_elements, unsafe_allow_html=True)
+st.markdown(hide_branding_keep_sidebar, unsafe_allow_html=True)
 import pandas as pd
 import numpy as np
 import plotly.express as px
