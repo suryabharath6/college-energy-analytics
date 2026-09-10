@@ -1,26 +1,40 @@
 import streamlit as st
 
-# Hide Streamlit branding and footer, but keep sidebar collapse/expand controls working
-hide_branding_keep_sidebar = """
+# 1. Page Configuration
+st.set_page_config(
+    page_title="College Energy Analytics",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# 2. Clean CSS (Hides Streamlit branding, keeps sidebar collapse/expand & upload widget)
+hide_branding_keep_uploader = """
     <style>
     #MainMenu {visibility: hidden !important;}
     footer {visibility: hidden !important;}
-    
-    /* Hide top right toolbar/GitHub links */
     [data-testid="stToolbar"] {display: none !important;}
-    
-    /* Target bottom badges */
     [data-testid="stStatusWidget"] {display: none !important;}
-    [class*="viewerBadge_container"] {display: none !important;}
     
-    /* Ensure the sidebar collapse/expand button stays visible and clickable */
+    /* Ensure sidebar toggle button stays visible */
     [data-testid="stSidebarCollapseButton"] {
         visibility: visible !important;
         display: block !important;
     }
     </style>
 """
-st.markdown(hide_branding_keep_sidebar, unsafe_allow_html=True)
+st.markdown(hide_branding_keep_uploader, unsafe_allow_html=True)
+
+# 3. Sidebar File Uploader
+st.sidebar.title("Navigation & Data")
+uploaded_file = st.sidebar.file_uploader("Upload Energy Consumption CSV", type=["csv"])
+
+# 4. App Main Content Logic
+if uploaded_file is not None:
+    st.title("College Campus Energy Analytics Dashboard")
+    # Insert your dataframe processing & plot code here
+else:
+    st.title("College Campus Energy Analytics Dashboard")
+    st.info("Please upload a CSV file in the left sidebar to view energy consumption analytics.")
 import pandas as pd
 import numpy as np
 import plotly.express as px
