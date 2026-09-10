@@ -1,8 +1,10 @@
 import streamlit as st
 import streamlit as st
 
-# Hide Streamlit header, top toolbar, GitHub links, and footer
-hide_streamlit_style = """
+import streamlit as st
+
+# Hide top header, main menu, footer, and bottom viewer badges
+hide_all_streamlit_elements = """
     <style>
     #MainMenu {visibility: hidden !important;}
     footer {visibility: hidden !important;}
@@ -10,9 +12,16 @@ hide_streamlit_style = """
     [data-testid="stHeader"] {display: none !important;}
     [data-testid="stToolbar"] {display: none !important;}
     .stAppHeader {display: none !important;}
+    
+    /* Target bottom badges: "Created by" and "Hosted with Streamlit" */
+    [data-testid="stStatusWidget"] {display: none !important;}
+    .viewerBadge_container__1A53N {display: none !important;}
+    [class*="viewerBadge_container"] {display: none !important;}
+    [class*="styles_viewerBadge"] {display: none !important;}
+    div[class*="stActionButton"] {display: none !important;}
     </style>
 """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+st.markdown(hide_all_streamlit_elements, unsafe_allow_html=True)
 import pandas as pd
 import numpy as np
 import plotly.express as px
