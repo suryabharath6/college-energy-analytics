@@ -3,11 +3,6 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import hashlib
-import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.express as px
-import hashlib
 
 # Page Setup
 st.set_page_config(page_title="Campus Energy Analytics", layout="wide")
