@@ -1,5 +1,6 @@
 # ============================================================
 # CAMPUS ENERGY ANALYTICS
+# User Registration + Login + PostgreSQL Activity Logging
 # ============================================================
 
 # ---------------- IMPORTS ----------------
@@ -13,7 +14,9 @@ import os
 import psycopg2
 
 
-# ---------------- PAGE CONFIGURATION ----------------
+# ============================================================
+# PAGE CONFIGURATION
+# ============================================================
 
 st.set_page_config(
     page_title="Campus Energy Analytics",
@@ -22,14 +25,19 @@ st.set_page_config(
 
 
 # ============================================================
-# DATABASE FUNCTIONS
+# DATABASE CONNECTION
 # ============================================================
 
 def get_db_connection():
+
     return psycopg2.connect(
         os.environ["DATABASE_URL"]
     )
 
+
+# ============================================================
+# INITIALIZE DATABASE
+# ============================================================
 
 def initialize_database():
 
@@ -38,6 +46,17 @@ def initialize_database():
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        # Users table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(100) UNIQUE NOT NULL,
+                password_hash VARCHAR(64) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # User activity table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS user_activities (
                 id SERIAL PRIMARY KEY,
@@ -54,12 +73,111 @@ def initialize_database():
 
     except Exception as e:
 
-        print("Database initialization error:", e)
+        st.error(
+            f"Database initialization error: {e}"
+        )
 
 
-# Create table when application starts
+# Create tables when application starts
 initialize_database()
 
+
+# ============================================================
+# PASSWORD HASHING
+# ============================================================
+
+def hash_password(password):
+
+    return hashlib.sha256(
+        password.encode()
+    ).hexdigest()
+
+
+# ============================================================
+# REGISTER USER
+# ============================================================
+
+def register_user(username, password):
+
+    try:
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        password_hash = hash_password(password)
+
+        cursor.execute(
+            """
+            INSERT INTO users
+            (username, password_hash)
+            VALUES (%s, %s)
+            """,
+            (username, password_hash)
+        )
+
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+
+        return True, "Account created successfully!"
+
+    except psycopg2.errors.UniqueViolation:
+
+        conn.rollback()
+
+        cursor.close()
+        conn.close()
+
+        return False, "Username already exists."
+
+    except Exception as e:
+
+        return False, f"Database error: {e}"
+
+
+# ============================================================
+# CHECK LOGIN
+# ============================================================
+
+def check_login(username, password):
+
+    try:
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        password_hash = hash_password(password)
+
+        cursor.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE username = %s
+            AND password_hash = %s
+            """,
+            (username, password_hash)
+        )
+
+        user = cursor.fetchone()
+
+        cursor.close()
+        conn.close()
+
+        return user is not None
+
+    except Exception as e:
+
+        st.error(
+            f"Database error: {e}"
+        )
+
+        return False
+
+
+# ============================================================
+# LOG USER ACTIVITY
+# ============================================================
 
 def log_activity(username, activity):
 
@@ -84,29 +202,10 @@ def log_activity(username, activity):
 
     except Exception as e:
 
-        print("Activity logging error:", e)
-
-
-# ============================================================
-# LOGIN SYSTEM
-# ============================================================
-
-def hash_password(password):
-
-    return hashlib.sha256(
-        password.encode()
-    ).hexdigest()
-
-
-def check_login(username, password):
-
-    users = st.secrets["users"]
-
-    if username in users:
-
-        return users[username] == hash_password(password)
-
-    return False
+        print(
+            "Activity logging error:",
+            e
+        )
 
 
 # ============================================================
@@ -123,71 +222,224 @@ if "username" not in st.session_state:
     st.session_state.username = ""
 
 
+if "page" not in st.session_state:
+
+    st.session_state.page = "login"
+
+
 # ============================================================
-# LOGIN PAGE
+# AUTHENTICATION PAGE
 # ============================================================
 
 if not st.session_state.logged_in:
 
-    st.title("🔐 Campus Energy Analytics")
+    st.title("⚡ Campus Energy Analytics")
 
-    st.subheader("Login")
+    st.subheader("🔐 User Authentication")
 
-    username = st.text_input(
-        "Username"
+
+    # --------------------------------------------------------
+    # LOGIN / REGISTER TABS
+    # --------------------------------------------------------
+
+    login_tab, register_tab = st.tabs(
+        [
+            "🔑 Login",
+            "📝 Create Account"
+        ]
     )
 
-    password = st.text_input(
-        "Password",
-        type="password"
-    )
 
-    if st.button(
-        "Login",
-        type="primary"
-    ):
+    # ========================================================
+    # LOGIN
+    # ========================================================
 
-        if check_login(
-            username,
-            password
+    with login_tab:
+
+        st.write(
+            "Login using your registered account."
+        )
+
+        login_username = st.text_input(
+            "Username",
+            key="login_username"
+        )
+
+        login_password = st.text_input(
+            "Password",
+            type="password",
+            key="login_password"
+        )
+
+
+        if st.button(
+            "Login",
+            type="primary",
+            key="login_button"
         ):
 
-            # Save login state
-            st.session_state.logged_in = True
+            if (
+                login_username.strip() == ""
+                or login_password == ""
+            ):
 
-            st.session_state.username = username
+                st.warning(
+                    "Please enter username and password."
+                )
 
-            # Record successful login
-            log_activity(
-                username,
-                "Login successful"
-            )
+            else:
 
-            # Reload application
-            st.rerun()
+                if check_login(
+                    login_username,
+                    login_password
+                ):
 
-        else:
+                    # Save session
+                    st.session_state.logged_in = True
 
-            # Record failed login
-            log_activity(
-                username,
-                "Failed login attempt"
-            )
+                    st.session_state.username = (
+                        login_username
+                    )
 
-            st.error(
-                "❌ Invalid username or password"
-            )
+                    # Log successful login
+                    log_activity(
+                        login_username,
+                        "Login successful"
+                    )
+
+                    st.success(
+                        "Login successful!"
+                    )
+
+                    st.rerun()
+
+                else:
+
+                    # Log failed login
+                    log_activity(
+                        login_username,
+                        "Failed login attempt"
+                    )
+
+                    st.error(
+                        "❌ Invalid username or password."
+                    )
+
+
+    # ========================================================
+    # REGISTER
+    # ========================================================
+
+    with register_tab:
+
+        st.write(
+            "Create a new account."
+        )
+
+
+        register_username = st.text_input(
+            "Choose Username",
+            key="register_username"
+        )
+
+
+        register_password = st.text_input(
+            "Choose Password",
+            type="password",
+            key="register_password"
+        )
+
+
+        confirm_password = st.text_input(
+            "Confirm Password",
+            type="password",
+            key="confirm_password"
+        )
+
+
+        if st.button(
+            "Create Account",
+            type="primary",
+            key="register_button"
+        ):
+
+            username = register_username.strip()
+
+
+            # Check username
+            if username == "":
+
+                st.warning(
+                    "Please enter a username."
+                )
+
+
+            # Check password
+            elif register_password == "":
+
+                st.warning(
+                    "Please enter a password."
+                )
+
+
+            # Check password length
+            elif len(register_password) < 6:
+
+                st.warning(
+                    "Password must contain at least 6 characters."
+                )
+
+
+            # Check password confirmation
+            elif register_password != confirm_password:
+
+                st.error(
+                    "❌ Passwords do not match."
+                )
+
+
+            else:
+
+                success, message = register_user(
+                    username,
+                    register_password
+                )
+
+
+                if success:
+
+                    # Log registration
+                    log_activity(
+                        username,
+                        "Account created"
+                    )
+
+                    st.success(
+                        "✅ Account created successfully!"
+                    )
+
+                    st.info(
+                        "You can now go to the Login tab and log in."
+                    )
+
+                else:
+
+                    st.error(
+                        f"❌ {message}"
+                    )
+
 
     # Stop dashboard from loading
     st.stop()
 
 
 # ============================================================
-# LOGGED-IN USER
+# SIDEBAR
 # ============================================================
 
 st.sidebar.success(
-    f"👤 Logged in as: {st.session_state.username}"
+    f"👤 Logged in as: "
+    f"{st.session_state.username}"
 )
 
 
@@ -195,7 +447,9 @@ st.sidebar.success(
 # LOGOUT
 # ============================================================
 
-if st.sidebar.button("🚪 Logout"):
+if st.sidebar.button(
+    "🚪 Logout"
+):
 
     log_activity(
         st.session_state.username,
@@ -210,13 +464,16 @@ if st.sidebar.button("🚪 Logout"):
 
 
 # ============================================================
-# DASHBOARD TITLE
+# DASHBOARD
 # ============================================================
 
-st.title("⚡ Campus Energy Analytics Dashboard")
+st.title(
+    "⚡ Campus Energy Analytics Dashboard"
+)
 
 st.write(
-    "Analyze electricity consumption across campus buildings."
+    "Analyze electricity consumption "
+    "across campus buildings."
 )
 
 
@@ -232,21 +489,26 @@ uploaded_file = st.sidebar.file_uploader(
 
 if uploaded_file is not None:
 
-    # Record file upload
+    # Log uploaded file
     log_activity(
         st.session_state.username,
         f"Uploaded CSV: {uploaded_file.name}"
     )
 
+
     # Read CSV
-    df = pd.read_csv(uploaded_file)
+    df = pd.read_csv(
+        uploaded_file
+    )
 
 
     # ========================================================
-    # DISPLAY RAW DATA
+    # DISPLAY UPLOADED DATA
     # ========================================================
 
-    st.subheader("📋 Uploaded Data")
+    st.subheader(
+        "📋 Uploaded Data"
+    )
 
     st.dataframe(
         df,
@@ -258,38 +520,47 @@ if uploaded_file is not None:
     # SELECT COLUMNS
     # ========================================================
 
-    st.subheader("⚙️ Select Columns")
+    st.subheader(
+        "⚙️ Select Columns"
+    )
 
 
     columns = df.columns.tolist()
 
 
+    # Timestamp column
     timestamp_column = st.selectbox(
         "Select Timestamp Column",
         columns
     )
 
 
-    numeric_columns = df.select_dtypes(
-        include=np.number
-    ).columns.tolist()
+    # Numeric columns
+    numeric_columns = (
+        df.select_dtypes(
+            include=np.number
+        ).columns.tolist()
+    )
 
 
     if len(numeric_columns) == 0:
 
         st.error(
-            "❌ No numeric column found for electricity usage."
+            "❌ No numeric column found "
+            "for electricity usage."
         )
 
         st.stop()
 
 
+    # Usage column
     usage_column = st.selectbox(
         "Select Electricity Usage Column",
         numeric_columns
     )
 
 
+    # Building column
     building_column = st.selectbox(
         "Select Building Column",
         columns
@@ -325,26 +596,31 @@ if uploaded_file is not None:
     # TIME FEATURES
     # ========================================================
 
-    df["Hour"] = df[
-        timestamp_column
-    ].dt.hour
+    df["Hour"] = (
+        df[timestamp_column]
+        .dt.hour
+    )
 
 
-    df["DayOfWeek"] = df[
-        timestamp_column
-    ].dt.day_name()
+    df["DayOfWeek"] = (
+        df[timestamp_column]
+        .dt.day_name()
+    )
 
 
-    df["Month"] = df[
-        timestamp_column
-    ].dt.month_name()
+    df["Month"] = (
+        df[timestamp_column]
+        .dt.month_name()
+    )
 
 
     # ========================================================
     # KEY METRICS
     # ========================================================
 
-    st.subheader("📊 Energy Consumption Metrics")
+    st.subheader(
+        "📊 Energy Consumption Metrics"
+    )
 
 
     total_usage = df[
@@ -407,7 +683,9 @@ if uploaded_file is not None:
     # VISUALIZATIONS
     # ========================================================
 
-    st.subheader("📈 Energy Consumption Visualizations")
+    st.subheader(
+        "📈 Energy Consumption Visualizations"
+    )
 
 
     tab1, tab2, tab3, tab4 = st.tabs(
@@ -459,7 +737,9 @@ if uploaded_file is not None:
     with tab2:
 
         building_usage = (
-            df.groupby(building_column)[usage_column]
+            df.groupby(
+                building_column
+            )[usage_column]
             .sum()
             .reset_index()
         )
@@ -499,7 +779,6 @@ if uploaded_file is not None:
         )
 
 
-        # Arrange weekdays correctly
         weekday_order = [
             "Monday",
             "Tuesday",
@@ -541,7 +820,9 @@ if uploaded_file is not None:
     with tab4:
 
         pie_data = (
-            df.groupby(building_column)[usage_column]
+            df.groupby(
+                building_column
+            )[usage_column]
             .sum()
             .reset_index()
         )
@@ -565,15 +846,18 @@ if uploaded_file is not None:
     # RECOMMENDATIONS
     # ========================================================
 
-    st.subheader("💡 Energy Saving Recommendations")
+    st.subheader(
+        "💡 Energy Saving Recommendations"
+    )
 
 
     if peak_usage > average_usage * 1.5:
 
         st.warning(
-            "⚠️ Peak consumption is significantly higher "
-            "than average consumption. Consider reducing "
-            "energy usage during peak hours."
+            "⚠️ Peak consumption is significantly "
+            "higher than average consumption. "
+            "Consider reducing energy usage during "
+            "peak hours."
         )
 
     else:
@@ -583,16 +867,20 @@ if uploaded_file is not None:
         )
 
 
-    # Find building with highest usage
+    # Highest consumption building
     highest_building = (
-        df.groupby(building_column)[usage_column]
+        df.groupby(
+            building_column
+        )[usage_column]
         .sum()
         .idxmax()
     )
 
 
     highest_building_usage = (
-        df.groupby(building_column)[usage_column]
+        df.groupby(
+            building_column
+        )[usage_column]
         .sum()
         .max()
     )
@@ -607,8 +895,8 @@ if uploaded_file is not None:
 
     st.write(
         "Consider monitoring lighting, HVAC systems, "
-        "computers, and other electrical equipment in "
-        "high-consumption buildings."
+        "computers, and other electrical equipment "
+        "in high-consumption buildings."
     )
 
 
@@ -616,7 +904,10 @@ if uploaded_file is not None:
     # PROCESSED DATA
     # ========================================================
 
-    st.subheader("📋 Processed Data")
+    st.subheader(
+        "📋 Processed Data"
+    )
+
 
     st.dataframe(
         df,
@@ -627,6 +918,6 @@ if uploaded_file is not None:
 else:
 
     st.info(
-        "👈 Please upload an electricity consumption CSV "
-        "file from the sidebar to start the analysis."
+        "👈 Please upload an electricity consumption "
+        "CSV file from the sidebar to start the analysis."
     )
