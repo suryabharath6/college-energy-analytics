@@ -2,10 +2,71 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import hashlib
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import hashlib
 
 # Page Setup
 st.set_page_config(page_title="Campus Energy Analytics", layout="wide")
 
+
+# ---------------- LOGIN SYSTEM ----------------
+
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+def check_login(username, password):
+    users = st.secrets["users"]
+
+    if username in users:
+        return users[username] == hash_password(password)
+
+    return False
+
+
+# Initialize login state
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if "username" not in st.session_state:
+    st.session_state.username = ""
+
+
+# Show Login Page
+if not st.session_state.logged_in:
+
+    st.title("🔐 Campus Energy Analytics")
+
+    st.subheader("Login")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login", type="primary"):
+
+        if check_login(username, password):
+            st.session_state.logged_in = True
+            st.session_state.username = username
+            st.rerun()
+
+        else:
+            st.error("❌ Invalid username or password")
+
+    st.stop()
+
+
+# ---------------- LOGGED-IN USER ----------------
+
+st.sidebar.success(f"👤 Logged in as: {st.session_state.username}")
+
+if st.sidebar.button("🚪 Logout"):
+    st.session_state.logged_in = False
+    st.session_state.username = ""
+    st.rerun()
 st.title("⚡ College Campus Energy Consumption Analytics")
 st.markdown("Analyze electricity consumption across campus facilities, identify peak hours, and view trends.")
 
