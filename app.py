@@ -256,26 +256,33 @@ if not st.session_state.logged_in:
 
     with login_tab:
 
-        st.write(
-            "Login using your registered account."
-        )
+    st.write(
+        "Login using your registered account."
+    )
+
+    # Make login fields smaller and centered
+    col1, col2, col3 = st.columns([1, 2, 1])
+
+    with col2:
 
         login_username = st.text_input(
             "Username",
+            placeholder="Enter your username",
             key="login_username"
         )
 
         login_password = st.text_input(
             "Password",
             type="password",
+            placeholder="Enter your password",
             key="login_password"
         )
-
 
         if st.button(
             "Login",
             type="primary",
-            key="login_button"
+            key="login_button",
+            use_container_width=True
         ):
 
             if (
